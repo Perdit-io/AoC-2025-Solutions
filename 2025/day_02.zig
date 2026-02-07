@@ -61,18 +61,27 @@ pub fn part2(input: []const u8) usize {
     var it = std.mem.tokenizeScalar(u8, input, ',');
     var sum: usize = 0;
 
+    const powers_of_10 = [_]usize{ 1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000 };
+
     while (it.next()) |token| {
         var numbers_it = std.mem.tokenizeScalar(u8, std.mem.trim(u8, token, "\n"), '-');
 
         const num1: usize = std.fmt.parseInt(usize, numbers_it.next().?, 10) catch unreachable;
         const num2: usize = std.fmt.parseInt(usize, numbers_it.next().?, 10) catch unreachable;
 
+        var current_digits: usize = if (num1 == 0) 1 else std.math.log10(num1) + 1;
+        var next_threshold = powers_of_10[current_digits];
+
         blk: for (num1..num2 + 1) |n| {
-            const digits = std.math.log10(n) + 1;
+            if (n == next_threshold) {
+                current_digits += 1;
+                next_threshold *= 10;
+            }
+            const digits = current_digits;
             var repeat_digits = digits / 2;
             while (repeat_digits > 0) : (repeat_digits -= 1) {
                 if (digits % repeat_digits != 0) continue;
-                const pow = std.math.pow(usize, 10, repeat_digits);
+                const pow = powers_of_10[repeat_digits];
                 const repeating = n % pow;
                 var num_left = n;
                 while (true) {
