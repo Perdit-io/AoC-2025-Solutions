@@ -46,6 +46,8 @@ pub fn main() !void {
 }
 
 fn runTask(writer: *std.Io.Writer, task: anytype, allocator: std.mem.Allocator) !u64 {
+    _ = task.func(task.input);
+
     var timer = std.time.Timer.start() catch unreachable;
     const result, const nanoseconds = timer: {
         const answer = task.func(task.input);
@@ -80,10 +82,13 @@ fn runBenchmark(writer: *std.Io.Writer, task: anytype, allocator: std.mem.Alloca
 
     var timer = std.time.Timer.start() catch unreachable;
 
-    for (times) |*t| {
+    for (0..config.bench_iter + 1) |i| {
         timer.reset();
         _ = task.func(task.input);
-        t.* = timer.read();
+        const elapsed = timer.read();
+
+        if (i == 0) continue;
+        times[i - 1] = elapsed;
     }
 
     std.mem.sort(u64, times, {}, std.sort.asc(u64));
