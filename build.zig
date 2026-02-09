@@ -33,7 +33,7 @@ pub fn build(b: *std.Build) void {
     defer active_days.deinit(b.allocator);
 
     const virtual_dir = b.addWriteFiles();
-    const runner_path = virtual_dir.addCopyFile(b.path("build/runner.zig"), "runner.zig");
+    const runner_path = virtual_dir.addCopyFile(b.path("src/runner.zig"), "runner.zig");
 
     for (start..end + 1) |d| {
         const day_src_name = b.fmt("day_{d:0>2}.zig", .{d});
