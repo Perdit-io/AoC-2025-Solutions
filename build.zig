@@ -7,7 +7,6 @@ const default_bench_iter = 100;
 
 pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
-
     const run_step = b.step("solve", "Run and print solution(s)");
     const test_step = b.step("test", "Run unit tests for solution(s)");
 
@@ -29,8 +28,6 @@ pub fn build(b: *std.Build) void {
 
     var solutions_code = std.ArrayList(u8).empty;
     defer solutions_code.deinit(b.allocator);
-    var active_days = std.ArrayList(u8).initCapacity(b.allocator, 25) catch unreachable;
-    defer active_days.deinit(b.allocator);
 
     const virtual_dir = b.addWriteFiles();
     const runner_path = virtual_dir.addCopyFile(b.path("src/runner.zig"), "runner.zig");
@@ -42,16 +39,33 @@ pub fn build(b: *std.Build) void {
         const original_src = b.path(b.fmt("{s}/{s}", .{ year, day_src_name }));
         const original_txt = b.path(b.fmt("input/{s}/{s}", .{ year, day_txt_name }));
 
-        if (std.fs.cwd().access(b.fmt("{s}/{s}", .{ year, day_src_name }), .{}) != error.FileNotFound and std.fs.cwd().access(b.fmt("input/{s}/{s}", .{ year, day_txt_name }), .{}) != error.FileNotFound) {
-            const day_path = virtual_dir.addCopyFile(original_src, day_src_name);
-            _ = virtual_dir.addCopyFile(original_txt, day_txt_name);
-            const line = b.fmt("pub const day_{d:0>2} = @import(\"{s}\");\n", .{ d, day_src_name });
-            solutions_code.appendSlice(b.allocator, line) catch unreachable;
+        const src_exists = if (std.fs.cwd().access(b.fmt("{s}/{s}", .{ year, day_src_name }), .{})) |_| true else |_| false;
+        const txt_exists = if (std.fs.cwd().access(b.fmt("input/{s}/{s}", .{ year, day_txt_name }), .{})) |_| true else |_| false;
 
-            active_days.appendAssumeCapacity(@intCast(d));
+        if (src_exists and txt_exists) {
+            _ = virtual_dir.addCopyFile(original_src, day_src_name);
+            _ = virtual_dir.addCopyFile(original_txt, day_txt_name);
+
+            const wrapper_code = b.fmt(
+                \\pub const day_{d:0>2} = struct {{
+                \\    pub const name = "Day {d:0>2}";
+                \\    const M = @import("{s}");
+                \\    const input = @embedFile("{s}");
+                \\
+                \\    pub const tasks = if (@hasDecl(M, "part2")) .{{
+                \\        .{{ .name = "Part 1", .func = M.part1, .input = input }},
+                \\        .{{ .name = "Part 2", .func = M.part2, .input = input }},
+                \\    }} else .{{
+                \\        .{{ .name = "Part 1", .func = M.part1, .input = input }},
+                \\    }};
+                \\}};
+                \\
+            , .{ d, d, day_src_name, day_txt_name });
+
+            solutions_code.appendSlice(b.allocator, wrapper_code) catch unreachable;
 
             const day_mod = b.createModule(.{
-                .root_source_file = day_path,
+                .root_source_file = original_src,
                 .target = b.graph.host,
                 .optimize = optimize,
             });
@@ -84,8 +98,6 @@ pub fn build(b: *std.Build) void {
     const options = b.addOptions();
     options.addOption(bool, "bench", bench);
     options.addOption(usize, "bench_iter", bench_iter);
-    options.addOption([]const u8, "year", year);
-    options.addOption([]const u8, "days", active_days.items);
     exe.root_module.addOptions("config", options);
 
     b.installArtifact(exe);

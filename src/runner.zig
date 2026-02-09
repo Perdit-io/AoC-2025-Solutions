@@ -3,9 +3,6 @@ const config = @import("config");
 const solutions = @import("solutions");
 
 pub fn main() !void {
-    // var debug_allocator: std.heap.DebugAllocator(.{}) = .init;
-    // defer std.debug.assert(debug_allocator.deinit() == .ok);
-    // const allocator = debug_allocator.allocator();
     var buffer: [4096]u8 = undefined;
     var fba = std.heap.FixedBufferAllocator.init(&buffer);
     const allocator = fba.allocator();
@@ -21,25 +18,19 @@ pub fn main() !void {
     defer arena.deinit();
 
     var total_ns: u64 = 0;
-    inline for (config.days) |day_num| {
+
+    inline for (@typeInfo(solutions).@"struct".decls) |decl| {
+        const Sol = @field(solutions, decl.name);
+
+        if (!@hasDecl(Sol, "tasks")) continue;
+
         defer _ = arena.reset(.retain_capacity);
         const solution_allocator = arena.allocator();
 
-        const field_name = std.fmt.comptimePrint("day_{d:0>2}", .{day_num});
-        const Day = @field(solutions, field_name);
+        try writer.print("\n\x1b[1;32m== {s} ==\x1b[0m\n", .{Sol.name});
 
-        const path = std.fmt.comptimePrint("day_{d:0>2}.txt", .{day_num});
-        const input_1 = @embedFile(path);
-        const input_2 = @embedFile(path);
-
-        // Check for Part 1 & 2
-        if (@hasDecl(Day, "part1")) {
-            total_ns += try runSolution(writer, Day.part1, input_1, day_num, 1, solution_allocator);
-            try writer.flush();
-        }
-
-        if (@hasDecl(Day, "part2")) {
-            total_ns += try runSolution(writer, Day.part2, input_2, day_num, 2, solution_allocator);
+        inline for (Sol.tasks) |task| {
+            total_ns += try runTask(writer, task, solution_allocator);
             try writer.flush();
         }
     }
@@ -54,76 +45,20 @@ pub fn main() !void {
     try writer.flush();
 }
 
-fn runSolution(writer: *std.Io.Writer, func: anytype, comptime input: []const u8, day_num: u8, part_num: u8, allocator: std.mem.Allocator) !u64 {
+fn runTask(writer: *std.Io.Writer, task: anytype, allocator: std.mem.Allocator) !u64 {
     var timer = std.time.Timer.start() catch unreachable;
     const result, const nanoseconds = timer: {
-        const answer = func(input);
+        const answer = task.func(task.input);
         const t = timer.read();
         break :timer .{ answer, t };
     };
 
     try writer.writeAll("\x1b[36m");
-    try writer.print("[{d:0>2}/{d}]", .{ day_num, part_num });
+    try writer.print("  [{s}] ", .{task.name});
     try writer.writeAll("\x1b[0m");
 
     if (config.bench) {
-        const times: []u64 = try allocator.alloc(u64, config.bench_iter);
-        defer allocator.free(times);
-        for (times) |*t| {
-            timer.reset();
-            _ = func(input);
-            t.* = timer.read();
-        }
-        std.mem.sort(u64, times, {}, std.sort.asc(u64));
-        const min_ns: u64 = times[0];
-        const max_ns: u64 = times[times.len - 1];
-        const sum_ns: u64 = pass: {
-            var sum: u64 = 0;
-            for (times) |t| sum += t;
-            break :pass sum;
-        };
-        const mean_ns: u64 = sum_ns / times.len;
-        const middle_index = @divTrunc(times.len, 2);
-        const median_ns: u64 =
-            if (times.len % 2 == 1) times[middle_index] else (times[middle_index - 1] + times[middle_index]) / 2;
-        const stddev: u64 = pass: {
-            var sum: f64 = 0.0;
-            for (times) |t| {
-                const t_float: f64 = @floatFromInt(t);
-                const mean_ns_float: f64 = @floatFromInt(mean_ns);
-                const diff = t_float - mean_ns_float;
-                sum += diff * diff;
-            }
-            const variance = sum / @as(f64, @floatFromInt(times.len));
-            break :pass @intFromFloat(@sqrt(variance));
-        };
-
-        try printAnswer(writer, result);
-        try writer.writeAll("\n  ");
-        try writer.writeAll("\x1b[90m");
-        try writer.writeAll("\xce\xbc\xc2\xb1\xcf\x83: ");
-        try writer.writeAll("\x1b[0m");
-        _ = try printTime(writer, mean_ns);
-        try writer.writeAll(" \xc2\xb1 ");
-        _ = try printTime(writer, stddev);
-        try writer.writeAll("\n  ");
-        try writer.writeAll("\x1b[90m");
-        try writer.writeAll("med: ");
-        try writer.writeAll("\x1b[0m");
-        _ = try printTime(writer, median_ns);
-        try writer.writeAll("\n  ");
-        try writer.writeAll("\x1b[90m");
-        try writer.writeAll("min: ");
-        try writer.writeAll("\x1b[0m");
-        _ = try printTime(writer, min_ns);
-        try writer.writeAll("\n  ");
-        try writer.writeAll("\x1b[90m");
-        try writer.writeAll("max: ");
-        try writer.writeAll("\x1b[0m");
-        _ = try printTime(writer, max_ns);
-        try writer.writeByte('\n');
-
-        return sum_ns;
+        return runBenchmark(writer, task, allocator, result);
     }
 
     try writer.writeAll(" ");
@@ -137,6 +72,74 @@ fn runSolution(writer: *std.Io.Writer, func: anytype, comptime input: []const u8
     try writer.print("\n", .{});
 
     return nanoseconds;
+}
+
+fn runBenchmark(writer: *std.Io.Writer, task: anytype, allocator: std.mem.Allocator, expected_result: anytype) !u64 {
+    const times: []u64 = try allocator.alloc(u64, config.bench_iter);
+    defer allocator.free(times);
+
+    var timer = std.time.Timer.start() catch unreachable;
+
+    for (times) |*t| {
+        timer.reset();
+        _ = task.func(task.input);
+        t.* = timer.read();
+    }
+
+    std.mem.sort(u64, times, {}, std.sort.asc(u64));
+
+    const min_ns: u64 = times[0];
+    const max_ns: u64 = times[times.len - 1];
+    const sum_ns: u64 = pass: {
+        var sum: u64 = 0;
+        for (times) |t| sum += t;
+        break :pass sum;
+    };
+    const mean_ns: u64 = sum_ns / times.len;
+    const middle_index = @divTrunc(times.len, 2);
+    const median_ns: u64 = if (times.len % 2 == 1)
+        times[middle_index]
+    else
+        (times[middle_index - 1] + times[middle_index]) / 2;
+
+    const stddev: u64 = pass: {
+        var sum: f64 = 0.0;
+        for (times) |t| {
+            const t_float: f64 = @floatFromInt(t);
+            const mean_ns_float: f64 = @floatFromInt(mean_ns);
+            const diff = t_float - mean_ns_float;
+            sum += diff * diff;
+        }
+        const variance = sum / @as(f64, @floatFromInt(times.len));
+        break :pass @intFromFloat(@sqrt(variance));
+    };
+
+    try printAnswer(writer, expected_result);
+    try writer.writeAll("\n  ");
+    try writer.writeAll("\x1b[90m");
+    try writer.writeAll("\xce\xbc\xc2\xb1\xcf\x83: "); // μ±σ
+    try writer.writeAll("\x1b[0m");
+    _ = try printTime(writer, mean_ns);
+    try writer.writeAll(" \xc2\xb1 ");
+    _ = try printTime(writer, stddev);
+    try writer.writeAll("\n  ");
+    try writer.writeAll("\x1b[90m");
+    try writer.writeAll("med: ");
+    try writer.writeAll("\x1b[0m");
+    _ = try printTime(writer, median_ns);
+    try writer.writeAll("\n  ");
+    try writer.writeAll("\x1b[90m");
+    try writer.writeAll("min: ");
+    try writer.writeAll("\x1b[0m");
+    _ = try printTime(writer, min_ns);
+    try writer.writeAll("\n  ");
+    try writer.writeAll("\x1b[90m");
+    try writer.writeAll("max: ");
+    try writer.writeAll("\x1b[0m");
+    _ = try printTime(writer, max_ns);
+    try writer.writeByte('\n');
+
+    return sum_ns;
 }
 
 fn printTime(writer: *std.Io.Writer, nanoseconds: u64) !u8 {
