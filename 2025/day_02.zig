@@ -1,6 +1,8 @@
 const std = @import("std");
 
-pub fn part1(input: []const u8) usize {
+pub fn part1(allocator: std.mem.Allocator, input: []const u8) usize {
+    _ = allocator;
+
     var it = std.mem.tokenizeScalar(u8, input, ',');
     var total_sum: usize = 0;
 
@@ -36,7 +38,9 @@ pub fn part1(input: []const u8) usize {
     return total_sum;
 }
 
-pub fn part1Slow(input: []const u8) usize {
+pub fn part1Slow(allocator: std.mem.Allocator, input: []const u8) usize {
+    _ = allocator;
+
     var it = std.mem.tokenizeScalar(u8, input, ',');
     var sum: usize = 0;
 
@@ -57,7 +61,9 @@ pub fn part1Slow(input: []const u8) usize {
     return sum;
 }
 
-pub fn part2(input: []const u8) usize {
+pub fn part2(allocator: std.mem.Allocator, input: []const u8) usize {
+    _ = allocator;
+
     var it = std.mem.tokenizeScalar(u8, input, ',');
     var sum: usize = 0;
 
@@ -109,7 +115,9 @@ pub fn part2(input: []const u8) usize {
 //     if (z != y) break;
 // }
 
-fn part1Scrapped(input: []const u8) u64 {
+fn part1Scrapped(allocator: std.mem.Allocator, input: []const u8) u64 {
+    _ = allocator;
+
     var it = std.mem.tokenizeAny(u8, input, ",\n");
     var sum: u64 = 0;
 

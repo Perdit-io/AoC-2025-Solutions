@@ -1,6 +1,8 @@
 const std = @import("std");
 
-pub fn part1(input: []const u8) usize {
+pub fn part1(allocator: std.mem.Allocator, input: []const u8) usize {
+    _ = allocator;
+
     var it = std.mem.tokenizeScalar(u8, input, '\n');
 
     var digit1: usize = 0;
@@ -25,7 +27,9 @@ pub fn part1(input: []const u8) usize {
     return sum;
 }
 
-pub fn part2(input: []const u8) usize {
+pub fn part2(allocator: std.mem.Allocator, input: []const u8) usize {
+    _ = allocator;
+
     var it = std.mem.tokenizeScalar(u8, input, '\n');
 
     var digits = [_]u8{0} ** 12;

@@ -2,7 +2,9 @@ const std = @import("std");
 
 // This was reimplemented to try changing dir to i16 instead of char u8, which was needed for
 // part 2 retry
-pub fn part1(comptime input: []const u8) usize {
+pub fn part1(allocator: std.mem.Allocator, comptime input: []const u8) usize {
+    _ = allocator;
+
     const result = comptime blk: {
         @setEvalBranchQuota(500_000);
 
@@ -28,7 +30,9 @@ pub fn part1(comptime input: []const u8) usize {
 
 // Idea from previous attempt: if dir 'R', there's no edge cases. So why not just flip the dial
 // and not branch anymore?
-pub fn part2(comptime input: []const u8) usize {
+pub fn part2(allocator: std.mem.Allocator, comptime input: []const u8) usize {
+    _ = allocator;
+
     const result = comptime blk: {
         @setEvalBranchQuota(500_000);
 
@@ -55,7 +59,9 @@ pub fn part2(comptime input: []const u8) usize {
     return result;
 }
 
-fn part2a(comptime input: []const u8) u16 {
+fn part2a(allocator: std.mem.Allocator, comptime input: []const u8) u16 {
+    _ = allocator;
+
     const result = comptime blk: {
         @setEvalBranchQuota(500_000);
 

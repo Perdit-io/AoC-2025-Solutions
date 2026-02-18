@@ -33,11 +33,7 @@ const PaperRoll = struct {
     }
 };
 
-pub fn part1(input: []const u8) usize {
-    var debug_allocator: std.heap.DebugAllocator(.{}) = .init;
-    defer std.debug.assert(debug_allocator.deinit() == .ok);
-    const allocator = debug_allocator.allocator();
-
+pub fn part1(allocator: std.mem.Allocator, input: []const u8) usize {
     var it = std.mem.tokenizeScalar(u8, input, '\n');
 
     var data_alist = std.ArrayList([]PaperRoll).empty;
@@ -85,11 +81,7 @@ pub fn part1(input: []const u8) usize {
     return sum;
 }
 
-pub fn part2(input: []const u8) usize {
-    var debug_allocator: std.heap.DebugAllocator(.{}) = .init;
-    defer std.debug.assert(debug_allocator.deinit() == .ok);
-    const allocator = debug_allocator.allocator();
-
+pub fn part2(allocator: std.mem.Allocator, input: []const u8) usize {
     var it = std.mem.tokenizeScalar(u8, input, '\n');
 
     var data_alist = std.ArrayList([]PaperRoll).empty;

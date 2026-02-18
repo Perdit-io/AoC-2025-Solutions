@@ -9,11 +9,7 @@ fn doOperation(operator: Op, operand1: usize, operand2: usize) usize {
     };
 }
 
-pub fn part1(input: []const u8) usize {
-    var debug_allocator: std.heap.DebugAllocator(.{}) = .init;
-    defer std.debug.assert(debug_allocator.deinit() == .ok);
-    const allocator = debug_allocator.allocator();
-
+pub fn part1(allocator: std.mem.Allocator, input: []const u8) usize {
     var line_it = std.mem.tokenizeScalar(u8, input, '\n');
 
     var lines = std.ArrayList(std.mem.TokenIterator(u8, .scalar)).empty;
@@ -49,11 +45,7 @@ pub fn part1(input: []const u8) usize {
     return sum;
 }
 
-pub fn part2(input: []const u8) usize {
-    var debug_allocator: std.heap.DebugAllocator(.{}) = .init;
-    defer std.debug.assert(debug_allocator.deinit() == .ok);
-    const allocator = debug_allocator.allocator();
-
+pub fn part2(allocator: std.mem.Allocator, input: []const u8) usize {
     var line_it = std.mem.tokenizeScalar(u8, input, '\n');
 
     var lines_al = std.ArrayList([]const u8).empty;
