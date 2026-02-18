@@ -24,12 +24,12 @@ pub fn main() !void {
 
         if (!@hasDecl(Sol, "tasks")) continue;
 
-        defer _ = arena.reset(.retain_capacity);
         const solution_allocator = arena.allocator();
 
         try writer.print("\n\x1b[1;32m== {s} ==\x1b[0m\n", .{Sol.name});
 
         inline for (Sol.tasks) |task| {
+            _ = arena.reset(.retain_capacity);
             total_ns += try runTask(writer, task, solution_allocator);
             try writer.flush();
         }
@@ -46,8 +46,6 @@ pub fn main() !void {
 }
 
 fn runTask(writer: *std.Io.Writer, task: anytype, allocator: std.mem.Allocator) !u64 {
-    _ = task.func(allocator, task.input);
-
     var timer = std.time.Timer.start() catch unreachable;
     const result, const nanoseconds = timer: {
         const answer = task.func(allocator, task.input);
@@ -76,19 +74,23 @@ fn runTask(writer: *std.Io.Writer, task: anytype, allocator: std.mem.Allocator) 
     return nanoseconds;
 }
 
-fn runBenchmark(writer: *std.Io.Writer, task: anytype, allocator: std.mem.Allocator, expected_result: anytype) !u64 {
-    const times: []u64 = try allocator.alloc(u64, config.bench_iter);
-    defer allocator.free(times);
+fn runBenchmark(writer: *std.Io.Writer, task: anytype, storage_allocator: std.mem.Allocator, expected_result: anytype) !u64 {
+    const times: []u64 = try storage_allocator.alloc(u64, config.bench_iter);
+    defer storage_allocator.free(times);
+
+    var bench_arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer bench_arena.deinit();
+
+    _ = task.func(bench_arena.allocator(), task.input);
 
     var timer = std.time.Timer.start() catch unreachable;
 
-    for (0..config.bench_iter + 1) |i| {
+    for (0..config.bench_iter) |i| {
+        _ = bench_arena.reset(.retain_capacity);
+        const solution_allocator = bench_arena.allocator();
         timer.reset();
-        _ = task.func(allocator, task.input);
-        const elapsed = timer.read();
-
-        if (i == 0) continue;
-        times[i - 1] = elapsed;
+        _ = task.func(solution_allocator, task.input);
+        times[i] = timer.read();
     }
 
     std.mem.sort(u64, times, {}, std.sort.asc(u64));
